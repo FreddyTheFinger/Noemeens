@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Noem er 20!</title>
+
+  <style>
+    :root {
+      --bg: #0c1125;
+      --card: #182143;
+      --border: #394d7c;
+      --green: #64e6a0;
+      --text: #f7f9ff;
+      --muted: #acb7dc;
+      --error: #ff9c9c;
+      --success: #89fcb3;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 18px;
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(circle at 15% 2%, #1a7155, transparent 35%),
+        var(--bg);
+    }
+
+    main {
+      width: min(720px, 100%);
+      margin: 22px auto;
+      padding: clamp(24px, 6vw, 48px);
+      border: 1px solid var(--border);
+      border-radius: 26px;
+      background: rgba(24, 33, 67, 0.96);
+      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.55);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.2rem, 7vw, 3.6rem);
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    label {
+      display: block;
+      margin: 20px 0 8px;
+      font-weight: 750;
+    }
+
+    input,
+    select,
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 13px;
+      padding: 14px 16px;
+      font: inherit;
+    }
+
+    input,
+    select {
+      border: 1px solid var(--border);
+      color: white;
+      background: #0b1330;
+    }
+
+    button {
+      margin-top: 12px;
+      cursor: pointer;
+      color: #062014;
+      background: var(--green);
+      font-weight: 850;
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.65;
+    }
+
+    .secondary {
+      color: white;
+      background: #2b3969;
+    }
+
+    #status {
+      min-height: 24px;
+      margin-top: 10px;
+      overflow-wrap: anywhere;
+      color: var(--muted);
+    }
+
+    .error {
+      color: var(--error) !important;
+    }
+
+    .success {
+      color: var(--success) !important;
+    }
+
+    .game-card {
+      min-height: 230px;
+      margin: 28px 0 15px;
+      padding: 28px 20px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: #0b1127;
+    }
+
+    #categoryTitle {
+      margin-bottom: 14px;
+      color: #91edb7;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    #prompt {
+      max-width: 620px;
+      font-size: clamp(1.7rem, 6vw, 3.2rem);
+      font-weight: 850;
+      line-height: 1.1;
+    }
+
+    .model {
+      margin-top: 18px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: #2a3765;
+      color: var(--muted);
+      font-size: 0.85rem;
+      overflow-wrap: anywhere;
+    }
+
+    .small {
+      margin-top: 22px;
+      font-size: 0.84rem;
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <h1>Noem er 20!</h1>
+
+    <p>
+      Kies een categorie en laat Groq elke keer een nieuwe, originele
+      spelopdracht genereren.
+    </p>
+
+    <label for="apiKey">Jouw Groq API-key</label>
+
+    <input
+      id="apiKey"
+      type="password"
+      autocomplete="off"
+      placeholder="gsk_..."
+    >
+
+    <button id="connectButton">
+      API testen en opslaan
+    </button>
+
+    <div id="status">
+      Plak je key en tik op API testen en opslaan.
+    </div>
+
+    <label for="category">Categorie</label>
+
+    <select id="category">
+      <option>Willekeurig</option>
+      <option>Auto & vervoer</option>
+      <option>Eten & drinken</option>
+      <option>Dieren & natuur</option>
+      <option>Film, tv & muziek</option>
+      <option>Sport & spel</option>
+      <option>Aardrijkskunde</option>
+      <option>Taal & kennis</option>
+      <option>Huis & dagelijks leven</option>
+      <option>Geschiedenis & cultuur</option>
+      <option>Gek & creatief</option>
+    </select>
+
+    <button id="newButton">
+      Nieuwe opdracht
+    </button>
+
+    <button class="secondary" id="resetButton">
+      Wis gespeelde opdrachten
+    </button>
+
+    <section class="game-card">
+      <div>
+        <div id="categoryTitle">KLAAR OM TE SPELEN?</div>
+        <div id="prompt">
+          Test eerst je Groq API-key.
+        </div>
+      </div>
+    </section>
+
+    <div class="model" id="modelInfo">
+      Nog geen Groq-model geselecteerd
+    </div>
+
+    <p class="small">
+      Jouw API-key en de laatst getoonde opdrachten worden alleen opgeslagen
+      in de browser op dit apparaat. Deel deze GitHub-pagina niet met je key
+      in beeld.
+    </p>
+  </main>
+
+  <script>
+    const API_BASE = "https://api.groq.com/openai/v1";
+
+    const SETTINGS_KEY = "noem20-groq-settings-github-v1";
+    const HISTORY_KEY = "noem20-groq-history-github-v1";
+
+    let apiKey = "";
+    let activeModel = "";
+
+    const apiKeyInput = document.getElementById("apiKey");
+    const connectButton = document.getElementById("connectButton");
+    const newButton = document.getElementById("newButton");
+    const resetButton = document.getElementById("resetButton");
+
+    const categorySelect = document.getElementById("category");
+    const statusElement = document.getElementById("status");
+    const categoryTitle = document.getElementById("categoryTitle");
+    const promptElement = document.getElementById("prompt");
+    const modelInfo = document.getElementById("modelInfo");
+
+    function makeHeaders() {
+      return {
+        "Authorization": "Bearer " + apiKey,
+        "Content-Type": "application/json"
+      };
+    }
+
+    function showStatus(message, style) {
+      statusElement.textContent = message;
+      statusElement.className = style || "";
+    }
+
+    function getHistory() {
+      try {
+        return JSON.parse(
+          localStorage.getItem(HISTORY_KEY) || "[]"
+        );
+      } catch {
+        return [];
+      }
+    }
+
+    function addToHistory(text) {
+      const history = getHistory();
+
+      history.push(text);
+
+      localStorage.setItem(
+        HISTORY_KEY,
+        JSON.stringify(history.slice(-250))
+      );
+    }
+
+    function chooseCandidateModels(models) {
+      const excluded =
+        /(guard|whisper|tts|audio|vision|moderation|embed)/i;
+
+      const preferred =
+        /(llama-4|qwen3|gpt-oss|gemma|llama-3)/i;
+
+      return models
+        .filter(function (model) {
+          return model.id && !excluded.test(model.id);
+        })
+        .sort(function (a, b) {
+          const aPreferred = preferred.test(a.id) ? 1 : 0;
+          const bPreferred = preferred.test(b.id) ? 1 : 0;
+
+          if (aPreferred !== bPreferred) {
+            return bPreferred - aPreferred;
+          }
+
+          return a.id.localeCompare(b.id);
+        });
+    }
+
+    async function findWorkingModel() {
+      const listResponse = await fetch(
+        API_BASE + "/models",
+        {
+          headers: makeHeaders()
+        }
+      );
+
+      if (!listResponse.ok) {
+        const text = await listResponse.text();
+
+        throw new Error(
+          "Modellen ophalen mislukt: " +
+          listResponse.status +
+          " — " +
+          text
+        );
+      }
+
+      const listData = await listResponse.json();
+
+      const candidates = chooseCandidateModels(
+        listData.data || []
+      );
+
+      if (candidates.length === 0) {
+        throw new Error(
+          "Geen bruikbare Groq-chatmodellen gevonden."
+        );
+      }
+
+      for (const candidate of candidates) {
+        try {
+          const testResponse = await fetch(
+            API_BASE + "/chat/completions",
+            {
+              method: "POST",
+              headers: makeHeaders(),
+              body: JSON.stringify({
+                model: candidate.id,
+                messages: [
+                  {
+                    role: "user",
+                    content: "Antwoord uitsluitend met OK."
+                  }
+                ],
+                max_tokens: 8,
+                temperature: 0
+              })
+            }
+          );
+
+          if (testResponse.ok) {
+            return candidate.id;
+          }
+        } catch {
+          // Probeer het volgende beschikbare model.
+        }
+      }
+
+      throw new Error(
+        "Geen beschikbaar Groq-model accepteert chat-opdrachten."
+      );
+    }
+
+    async function connectGroq() {
+      apiKey = apiKeyInput.value.trim();
+
+      if (!apiKey) {
+        showStatus("Plak eerst je Groq API-key.", "error");
+        return;
+      }
+
+      try {
+        connectButton.disabled = true;
+
+        showStatus(
+          "Beschikbare Groq-modellen worden gecontroleerd…"
+        );
+
+        activeModel = await findWorkingModel();
+
+        localStorage.setItem(
+          SETTINGS_KEY,
+          JSON.stringify({
+            apiKey: apiKey,
+            activeModel: activeModel
+          })
+        );
+
+        modelInfo.textContent =
+          "Werkend model: " + activeModel;
+
+        showStatus(
+          "✅ API werkt. Model geselecteerd: " + activeModel,
+          "success"
+        );
+
+        categoryTitle.textContent =
+          "MODEL: " + activeModel;
+
+        promptElement.textContent =
+          "API werkt. Tik nu op Nieuwe opdracht.";
+      } catch (error) {
+        showStatus(
+          "API-test mislukt: " + error.message,
+          "error"
+        );
+      } finally {
+        connectButton.disabled = false;
+      }
+    }
+
+    async function createPrompt() {
+      if (!apiKey || !activeModel) {
+        showStatus(
+          "Test eerst je API-key met de knop hierboven.",
+          "error"
+        );
+
+        return;
+      }
+
+      try {
+        newButton.disabled = true;
+
+        categoryTitle.textContent = "EVEN WACHTEN";
+        promptElement.textContent =
+          "Nieuwe opdracht wordt gemaakt…";
+
+        const chosenCategory = categorySelect.value;
+
+        const recentPrompts = getHistory()
+          .slice(-60)
+          .join(" | ");
+
+        const instruction =
+          "Genereer precies één originele Nederlandse spelopdracht. " +
+          'Gebruik exact het format: "Noem 20 [onderwerp]". ' +
+          "Categorie: " + chosenCategory + ". " +
+          "Vermijd deze eerder gebruikte opdrachten: " +
+          recentPrompts + ". " +
+          "Geen uitleg, nummering, aanhalingstekens of tweede zin.";
+
+        const response = await fetch(
+          API_BASE + "/chat/completions",
+          {
+            method: "POST",
+            headers: makeHeaders(),
+            body: JSON.stringify({
+              model: activeModel,
+              messages: [
+                {
+                  role: "user",
+                  content: instruction
+                }
+              ],
+              max_tokens: 60,
+              temperature: 1.2
+            })
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+
+          throw new Error(
+            response.status + " — " + errorText
+          );
+        }
+
+        const result = await response.json();
+
+        let generated =
+          result.choices &&
+          result.choices[0] &&
+          result.choices[0].message
+            ? result.choices[0].message.content
+            : "";
+
+        generated = generated
+          .trim()
+          .replace(/^["']|["']$/g, "")
+          .split("
+")[0]
+          .trim();
+
+        if (!generated.toLowerCase().startsWith("noem 20")) {
+          generated =
+            "Noem 20 " +
+            generated.replace(/^noems*/i, "");
+        }
+
+        if (generated.length < 10) {
+          throw new Error(
+            "Groq gaf geen bruikbare spelopdracht terug."
+          );
+        }
+
+        addToHistory(generated);
+
+        promptElement.textContent = generated;
+
+        categoryTitle.textContent =
+          chosenCategory === "Willekeurig"
+            ? "WILLEKEURIG"
+            : chosenCategory;
+      } catch (error) {
+        categoryTitle.textContent = "FOUT";
+
+        promptElement.textContent =
+          "Groq-fout: " + error.message;
+      } finally {
+        newButton.disabled = false;
+      }
+    }
+
+    function resetHistory() {
+      localStorage.removeItem(HISTORY_KEY);
+
+      categoryTitle.textContent = "KLAAR OM TE SPELEN?";
+      promptElement.textContent =
+        "Geschiedenis gewist. Tik op Nieuwe opdracht.";
+
+      showStatus(
+        "De opgeslagen opdrachten zijn gewist.",
+        "success"
+      );
+    }
+
+    connectButton.addEventListener("click", connectGroq);
+    newButton.addEventListener("click", createPrompt);
+    resetButton.addEventListener("click", resetHistory);
+
+    const saved = localStorage.getItem(SETTINGS_KEY);
+
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+
+        apiKey = data.apiKey || "";
+        activeModel = data.activeModel || "";
+
+        apiKeyInput.value = apiKey;
+
+        if (apiKey && activeModel) {
+          showStatus(
+            "Opgeslagen model: " + activeModel,
+            "success"
+          );
+
+          modelInfo.textContent =
+            "Werkend model: " + activeModel;
+
+          categoryTitle.textContent =
+            "MODEL: " + activeModel;
+
+          promptElement.textContent =
+            "Tik op Nieuwe opdracht.";
+        }
+      } catch {
+        localStorage.removeItem(SETTINGS_KEY);
+      }
+    }
+  </script>
+</body>
+</html>
